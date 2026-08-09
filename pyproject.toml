@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ae-nesting"
+version = "0.1.0"
+description = "Optimización del nesting 2D irregular mediante algoritmos genéticos"
+requires-python = ">=3.11,<3.12"
+
+dependencies = [
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "shapely",
+    "deap",
+    "pyyaml",
+    "tqdm"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

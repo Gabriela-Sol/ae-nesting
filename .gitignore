@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Entorno virtual
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+
+# Tests
+.pytest_cache/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Resultados temporales
+reports/results/*
+!reports/results/.gitkeep
