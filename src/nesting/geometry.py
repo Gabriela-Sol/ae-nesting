@@ -109,8 +109,12 @@ def get_ifp_geometry(
     Recupera el Inner-Fit Polygon (IFP) correspondiente
     a una pieza y una orientación.
 
-    El IFP representa las posiciones permitidas para el
-    punto de referencia de la pieza dentro del tablero.
+    El IFP almacenado en el XML utiliza como referencia
+    la esquina mínima de la caja envolvente de la pieza.
+
+    Como el decoder trabaja con el punto de referencia
+    original (0, 0) de cada pieza, trasladamos el IFP
+    para llevarlo al mismo sistema de coordenadas.
     """
 
     key = (
@@ -127,9 +131,32 @@ def get_ifp_geometry(
             f"  orientación: {piece_angle}°"
         )
 
-    geometry_id = problem.ifp_lookup[key]
+    ifp_geometry_id = problem.ifp_lookup[key]
 
-    return problem.geometries[geometry_id]
+    raw_ifp = problem.geometries[
+        ifp_geometry_id
+    ]
+
+    # Obtenemos la pieza ya orientada, pero todavía
+    # ubicada respecto de su referencia original (0, 0).
+    oriented_piece = get_oriented_piece(
+        problem=problem,
+        polygon_id=piece_polygon_id,
+        angle=piece_angle,
+    )
+
+    min_x, min_y, _, _ = oriented_piece.bounds
+
+    # Convertimos las coordenadas del IFP al mismo
+    # sistema de referencia que usa place_piece().
+    reference_ifp = translate(
+        raw_ifp,
+        xoff=-min_x,
+        yoff=-min_y,
+    )
+
+    return reference_ifp
+
 
 
 def get_relative_nfp(
@@ -217,105 +244,6 @@ def geometry_boundary(
     return geometry
 
 
-def extract_points_from_geometry(
-    geometry: BaseGeometry,
-) -> list[Point]:
-    """
-    Extrae puntos candidatos desde distintos tipos de
-    geometrías Shapely.
-
-    Se utiliza para obtener vértices e intersecciones
-    que luego funcionarán como posiciones candidatas.
-    """
-
-    if geometry.is_empty:
-        return []
-
-    geometry_type = geometry.geom_type
-
-    if geometry_type == "Point":
-        return [geometry]
-
-    if geometry_type == "MultiPoint":
-        return list(geometry.geoms)
-
-    if geometry_type in {
-        "LineString",
-        "LinearRing",
-    }:
-        return [
-            Point(x, y)
-            for x, y in geometry.coords
-        ]
-
-    if geometry_type == "Polygon":
-        points = [
-            Point(x, y)
-            for x, y in list(
-                geometry.exterior.coords
-            )[:-1]
-        ]
-
-        for interior_ring in geometry.interiors:
-            points.extend(
-                Point(x, y)
-                for x, y in list(
-                    interior_ring.coords
-                )[:-1]
-            )
-
-        return points
-
-    if geometry_type in {
-        "MultiLineString",
-        "MultiPolygon",
-        "GeometryCollection",
-    }:
-        points = []
-
-        for subgeometry in geometry.geoms:
-            points.extend(
-                extract_points_from_geometry(
-                    subgeometry
-                )
-            )
-
-        return points
-
-    raise TypeError(
-        f"Tipo geométrico no soportado: "
-        f"{geometry_type}"
-    )
-
-
-def deduplicate_points(
-    points: list[Point],
-    decimal_places: int = 8,
-) -> list[Point]:
-    """
-    Elimina puntos repetidos utilizando coordenadas
-    redondeadas para absorber pequeños errores numéricos.
-    """
-
-    unique_points: dict[
-        tuple[float, float],
-        Point,
-    ] = {}
-
-    for point in points:
-        key = (
-            round(point.x, decimal_places),
-            round(point.y, decimal_places),
-        )
-
-        if key not in unique_points:
-            unique_points[key] = Point(
-                float(key[0]),
-                float(key[1]),
-            )
-
-    return list(unique_points.values())
-
 
 def point_is_forbidden_by_nfp(
     point: Point,
@@ -377,6 +305,9 @@ def is_valid_piece_placement(
     candidate_piece: BaseGeometry,
     board_geometry: BaseGeometry,
     placed_geometries: list[BaseGeometry],
+    placed_bounds: list[
+        tuple[float, float, float, float]
+    ] | None = None,
     tolerance: float = GEOMETRY_TOLERANCE,
 ) -> bool:
     """
@@ -385,15 +316,54 @@ def is_valid_piece_placement(
     1. permanezca completamente dentro del tablero;
     2. no se superponga con ninguna pieza ya colocada.
 
+    Antes de calcular intersecciones geométricas se
+    comparan las bounding boxes para descartar pares
+    que no pueden intersectarse.
+
     El contacto entre bordes está permitido.
     """
 
-    if not board_geometry.covers(
-        candidate_piece
-    ):
+    if not board_geometry.covers(candidate_piece):
         return False
 
-    for placed_geometry in placed_geometries:
+    candidate_bounds = candidate_piece.bounds
+
+    # Si no se proporcionan bounds precalculados,
+    # los calculamos para conservar compatibilidad.
+    if placed_bounds is None:
+        placed_bounds = [
+            geometry.bounds
+            for geometry in placed_geometries
+        ]
+
+    for placed_geometry, placed_geometry_bounds in zip(
+        placed_geometries,
+        placed_bounds,
+    ):
+        (
+            candidate_min_x,
+            candidate_min_y,
+            candidate_max_x,
+            candidate_max_y,
+        ) = candidate_bounds
+
+        (
+            placed_min_x,
+            placed_min_y,
+            placed_max_x,
+            placed_max_y,
+        ) = placed_geometry_bounds
+
+        bounds_overlap = not (
+            candidate_max_x < placed_min_x
+            or placed_max_x < candidate_min_x
+            or candidate_max_y < placed_min_y
+            or placed_max_y < candidate_min_y
+        )
+
+        if not bounds_overlap:
+            continue
+
         intersection_area = (
             candidate_piece
             .intersection(placed_geometry)
@@ -404,6 +374,7 @@ def is_valid_piece_placement(
             return False
 
     return True
+
 
 
 def calculate_used_length(
@@ -421,3 +392,128 @@ def calculate_used_length(
         geometry.bounds[2]
         for geometry in geometries
     )
+
+
+def validate_layout(
+    board_geometry: BaseGeometry,
+    geometries: list[BaseGeometry],
+    tolerance: float = GEOMETRY_TOLERANCE,
+) -> tuple[bool, list[str]]:
+    """
+    Verifica la factibilidad geométrica de un layout completo.
+
+    Comprueba que:
+    - todas las piezas estén dentro del tablero;
+    - no exista solapamiento con área positiva.
+    """
+
+    errors = []
+
+    # Verificación de límites.
+    for index, geometry in enumerate(geometries):
+        if not board_geometry.covers(geometry):
+            errors.append(
+                f"Pieza {index} fuera del tablero."
+            )
+
+    # Verificación de solapamientos.
+    for first_index in range(len(geometries)):
+        for second_index in range(
+            first_index + 1,
+            len(geometries),
+        ):
+            intersection_area = (
+                geometries[first_index]
+                .intersection(
+                    geometries[second_index]
+                )
+                .area
+            )
+
+            if intersection_area > tolerance:
+                errors.append(
+                    f"Solapamiento entre "
+                    f"{first_index} y {second_index}: "
+                    f"{intersection_area}"
+                )
+
+    return len(errors) == 0, errors
+
+def extract_coordinates_from_geometry(
+    geometry: BaseGeometry,
+) -> list[tuple[float, float]]:
+    """
+    Extrae coordenadas representativas de una geometría
+    sin construir objetos Point adicionales.
+
+    Las geometrías compuestas se recorren de forma
+    iterativa para evitar llamadas recursivas.
+    """
+
+    coordinates: list[
+        tuple[float, float]
+    ] = []
+
+    pending_geometries = [geometry]
+
+    while pending_geometries:
+
+        current_geometry = (
+            pending_geometries.pop()
+        )
+
+        if current_geometry.is_empty:
+            continue
+
+        geometry_type = (
+            current_geometry.geom_type
+        )
+
+        if geometry_type == "Point":
+
+            x, y = current_geometry.coords[0]
+
+            coordinates.append(
+                (
+                    float(x),
+                    float(y),
+                )
+            )
+
+        elif geometry_type in {
+            "LineString",
+            "LinearRing",
+        }:
+
+            coordinates.extend(
+                (
+                    float(x),
+                    float(y),
+                )
+                for x, y
+                in current_geometry.coords
+            )
+
+        elif geometry_type == "Polygon":
+
+            coordinates.extend(
+                (
+                    float(x),
+                    float(y),
+                )
+                for x, y
+                in current_geometry.exterior.coords
+            )
+
+        elif geometry_type in {
+            "MultiPoint",
+            "MultiLineString",
+            "MultiPolygon",
+            "GeometryCollection",
+        }:
+
+            pending_geometries.extend(
+                current_geometry.geoms
+            )
+
+    return coordinates

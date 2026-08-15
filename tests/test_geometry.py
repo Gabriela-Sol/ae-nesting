@@ -1,18 +1,17 @@
 from pathlib import Path
 
 import pytest
-from shapely.geometry import Point
 
 from nesting.dataset import load_problem
 from nesting.geometry import (
     calculate_used_length,
     classify_piece_relation,
-    deduplicate_points,
     get_ifp_geometry,
     get_oriented_piece,
     get_relative_nfp,
     is_valid_piece_placement,
     place_piece,
+    validate_layout,
 )
 
 
@@ -215,21 +214,6 @@ def test_overlapping_placement_is_invalid(problem):
     )
 
 
-def test_deduplicate_points():
-    points = [
-        Point(1, 2),
-        Point(1, 2),
-        Point(1.00000000001, 2),
-        Point(3, 4),
-    ]
-
-    unique_points = deduplicate_points(
-        points
-    )
-
-    assert len(unique_points) == 2
-
-
 def test_used_length(problem):
     piece_a = place_piece(
         problem,
@@ -252,3 +236,29 @@ def test_used_length(problem):
     )
 
     assert used_length == pytest.approx(47.0)
+
+
+def test_validate_layout(problem):
+    piece_a = place_piece(
+        problem,
+        polygon_id="polygon1",
+        angle=0,
+        reference_x=2,
+        reference_y=0,
+    )
+
+    piece_b = place_piece(
+        problem,
+        polygon_id="polygon1",
+        angle=0,
+        reference_x=2,
+        reference_y=7,
+    )
+
+    is_valid, errors = validate_layout(
+        board_geometry=problem.board_geometry,
+        geometries=[piece_a, piece_b],
+    )
+
+    assert is_valid
+    assert errors == []

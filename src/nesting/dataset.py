@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-import re
 import xml.etree.ElementTree as ET
 
 from shapely.geometry import Polygon, LineString, Point
