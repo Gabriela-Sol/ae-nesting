@@ -24,19 +24,19 @@ La superficie total ocupada por las piezas es de aproximadamente 2160 unidades c
 
 Como el ancho de la tela es fijo, una cota inferior simple para la longitud necesaria puede obtenerse a partir del área:
 
- 
+```text
 longitud mínima teórica = área total / ancho
                          = 2160 / 40
                          = 54
- 
+```
 
 Esta cota representa un límite teórico basado únicamente en área. No considera la forma irregular de las piezas ni los espacios vacíos que inevitablemente aparecen entre ellas.
 
 La función objetivo utilizada en el proyecto es:
 
- 
+```text
 minimizar longitud de tela utilizada
- 
+```
 
 ---
 
@@ -51,7 +51,7 @@ De esta manera, las coordenadas `(x, y)` no forman parte del cromosoma.
 
 El flujo general es:
 
- 
+```text
 Algoritmo Genético
         │
         │ orden + orientaciones
@@ -67,7 +67,7 @@ Longitud utilizada
         │
         ▼
 Fitness
- 
+```
 
 ---
 
@@ -75,31 +75,31 @@ Fitness
 
 Cada individuo se representa mediante dos bloques:
 
- 
+```text
 [ orden de colocación | orientaciones ]
- 
+```
 
 Para una instancia con `N` piezas, el cromosoma tiene longitud `2N`.
 
 En SHIRTS:
 
- 
+```text
 N = 99
 
 longitud del cromosoma = 198
- 
+```
 
 La primera mitad del cromosoma es una permutación de los identificadores de las piezas:
 
- 
+```text
 [3, 7, 1, 0, 5, ...]
- 
+```
 
 La segunda mitad contiene la orientación asociada a cada instancia:
 
- 
+```text
 [0, 180, 0, 0, 180, ...]
- 
+```
 
 Las orientaciones están indexadas por `instance_id`.
 
@@ -135,11 +135,11 @@ Entre todos los candidatos válidos se selecciona de manera determinística el q
 
 El decoder devuelve finalmente:
 
- 
+```text
 placements
 used_length
 is_valid
- 
+```
 
 La longitud utilizada se calcula como la coordenada `x` máxima alcanzada por las piezas colocadas.
 
@@ -159,11 +159,11 @@ El NFP describe las posiciones relativas del punto de referencia de una pieza m�
 
 Su interpretación utilizada en el proyecto es:
 
- 
+```text
 interior del NFP  -> solapamiento
 borde del NFP     -> contacto permitido
 exterior del NFP  -> piezas separadas
- 
+```
 
 Algunos NFP del dataset son degenerados y aparecen como `LineString` en lugar de polígonos. El código contempla estos casos durante la lectura y validación geométrica.
 
@@ -175,9 +175,9 @@ La implementación del algoritmo evolutivo se realizó con **DEAP**.
 
 El fitness de cada individuo es:
 
- 
+```text
 fitness = longitud de tela utilizada
- 
+```
 
 Por lo tanto, se trata de un problema de **minimización**.
 
@@ -223,17 +223,17 @@ Además de individuos aleatorios, se probaron estrategias para comenzar la búsq
 
 Como primera referencia se utilizó:
 
- 
+```text
 orden natural de las piezas
 orientación = 0°
- 
+```
 
 Resultado aproximado:
 
- 
+```text
 Longitud utilizada: 79.50
 Aprovechamiento:     67.92 %
- 
+```
 
 ### Heurística por área
 
@@ -241,18 +241,18 @@ Se construyó una solución colocando primero las piezas de mayor área.
 
 Resultado aproximado:
 
- 
+```text
 Longitud utilizada: 76.94
 Aprovechamiento:     70.18 %
- 
+```
 
 Esta solución se utilizó posteriormente como punto de partida para generar perturbaciones.
 
 A partir de esas perturbaciones se obtuvo una solución semilla de aproximadamente:
 
- 
+```text
 Longitud utilizada: 74.78
- 
+```
 
 ---
 
@@ -270,7 +270,7 @@ Se utilizó una población pequeña generada alrededor de la mejor solución sem
 
 Configuración principal:
 
- 
+```text
 Población:                  6
 Generaciones:               3
 Tamaño de torneo:           2
@@ -279,13 +279,13 @@ Mutación global:            0.40
 Mutación interna orden:     0.02
 Mutación orientación:       0.02
 Elitismo:                   1
- 
+```
 
 Mejor resultado aproximado:
 
- 
+```text
 74.78
- 
+```
 
 Durante este experimento la población perdió rápidamente diversidad hasta terminar formada por copias del mismo individuo.
 
@@ -301,7 +301,7 @@ También se aumentaron las probabilidades de mutación.
 
 Configuración principal:
 
- 
+```text
 Población:                  8
 Generaciones:               5
 Tamaño de torneo:           2
@@ -310,13 +310,13 @@ Mutación global:            0.70
 Mutación interna orden:     0.04
 Mutación orientación:       0.04
 Elitismo:                   1
- 
+```
 
 Mejor resultado aproximado:
 
- 
+```text
 74.33
- 
+```
 
 La mejor solución apareció ya en la población inicial diversificada.
 
@@ -330,7 +330,7 @@ En el tercer experimento se mantuvo una población inicial diversificada, pero s
 
 Configuración principal:
 
- 
+```text
 Población:                  8
 Generaciones:               6
 Tamaño de torneo:           2
@@ -339,22 +339,22 @@ Mutación global:            0.50
 Mutación interna orden:     0.025
 Mutación orientación:       0.025
 Elitismo:                   1
- 
+```
 
 El mejor individuo apareció durante la generación 2.
 
 Resultado aproximado:
 
- 
+```text
 Longitud utilizada: 73.78
 Aprovechamiento:     73.19 %
- 
+```
 
 La mejora respecto del baseline original fue de aproximadamente:
 
- 
+```text
 7.20 %
- 
+```
 
 Esta fue la mejor solución obtenida durante los experimentos.
 
@@ -379,7 +379,7 @@ En el Experimento 1 se produjo una rápida pérdida de diversidad. En el Experim
 
 ## Estructura del repositorio
 
- 
+```text
 AE/
 │
 ├── data/
@@ -417,7 +417,7 @@ AE/
 ├── pyproject.toml
 ├── requirements.txt
 └── README.md
- 
+```
 
 ---
 
@@ -441,7 +441,7 @@ Incluye pruebas progresivas con subconjuntos pequeños de piezas y luego con la 
 
 También contiene pruebas de rendimiento y análisis realizados durante el desarrollo para detectar operaciones costosas y mejorar la generación y validación de posiciones candidatas.
 
-### `02_experimentos_ga.ipynb`
+### `03_experimentos_ga.ipynb`
 
 Notebook principal de experimentación.
 
@@ -473,11 +473,11 @@ Se encarga de leer la instancia ESICUP desde `shirts.xml`.
 
 Define las estructuras:
 
- 
+```text
 PieceType
 PieceInstance
 NestingProblem
- 
+```
 
 También:
 
@@ -517,9 +517,9 @@ Implementa el decoder determinístico.
 
 Recibe:
 
- 
+```text
 orden + orientaciones
- 
+```
 
 y devuelve un layout.
 
@@ -616,41 +616,41 @@ El proyecto fue desarrollado utilizando **Python 3.11**.
 
 Clonar el repositorio y posicionarse en la raíz:
 
-  
+```powershell
 cd AE
- 
+```
 
 Crear un entorno virtual:
 
-  
+```powershell
 python -m venv .venv
- 
+```
 
-Activarlo en Windows  :
+Activarlo en Windows PowerShell:
 
-  
+```powershell
 .\.venv\Scripts\Activate.ps1
- 
+```
 
 Instalar las dependencias:
 
-  
+```powershell
 python -m pip install -r requirements.txt
- 
+```
 
 Instalar el proyecto en modo editable:
 
-  
+```powershell
 python -m pip install -e .
- 
+```
 
 Esto permite importar los módulos directamente como:
 
- python
+```python
 from nesting.dataset import load_problem
 from nesting.decoder import decode_solution
 from nesting.genetic_algorithm import run_genetic_algorithm
- 
+```
 
 ---
 
@@ -675,13 +675,13 @@ Los tests automáticos incluidos actualmente cubren:
 
 Para ejecutar la suite:
 
-  
+```powershell
 python -m pytest -v
- 
+```
 
 Actualmente no se incluyeron tests unitarios específicos para `genetic_algorithm.py`.
 
-El comportamiento del Algoritmo Genético y de sus operadores se analiza principalmente en `02_experimentos_ga.ipynb`, donde se prueban la representación, crossover, mutación, poblaciones y evolución de los distintos experimentos.
+El comportamiento del Algoritmo Genético y de sus operadores se analiza principalmente en `03_experimentos_ga.ipynb`, donde se prueban la representación, crossover, mutación, poblaciones y evolución de los distintos experimentos.
 
 ---
 
@@ -689,21 +689,21 @@ El comportamiento del Algoritmo Genético y de sus operadores se analiza princip
 
 Los notebooks se encuentran en:
 
- 
+```text
 notebooks/
- 
+```
 
 Se recomienda utilizar el entorno virtual del proyecto como kernel de Jupyter.
 
 El orden de lectura sugerido es:
 
- 
+```text
 00_exploracion.ipynb
         ↓
 01_pruebas_decoder.ipynb
         ↓
-02_experimentos_ga.ipynb
- 
+03_experimentos_ga.ipynb
+```
 
 Los dos primeros notebooks documentan principalmente el proceso de exploración y desarrollo.
 
@@ -715,47 +715,47 @@ El tercer notebook contiene la experimentación final del Algoritmo Genético.
 
 Los resultados numéricos de los experimentos se guardan en:
 
- 
+```text
 reports/results/ga/
- 
+```
 
 Para cada experimento se genera una carpeta:
 
- 
+```text
 experiment_1/
 experiment_2/
 experiment_3/
- 
+```
 
 con archivos como:
 
- 
+```text
 history.csv
 best_genome.json
 parameters.json
 summary.json
- 
+```
 
 Además se generan archivos de resumen:
 
- 
+```text
 experiments_summary.csv
 best_solution.json
- 
+```
 
 Las figuras se almacenan en:
 
- 
+```text
 reports/figures/ga/
- 
+```
 
 Entre ellas:
 
- 
+```text
 experiments_convergence_comparison.png
 experiments_diversity_comparison.png
 best_layout_final.png
- 
+```
 
 También se almacenan las curvas y layouts correspondientes a cada experimento.
 
@@ -815,29 +815,29 @@ El primer experimento presentó convergencia prematura. El segundo permitió rec
 
 La mejor solución encontrada utilizó aproximadamente:
 
- 
+```text
 73.78 unidades de longitud
- 
+```
 
 frente a aproximadamente:
 
- 
+```text
 79.50 unidades
- 
+```
 
 del baseline inicial.
 
 Esto representa una mejora aproximada del:
 
- 
+```text
 7.20 %
- 
+```
 
 y un aprovechamiento de material cercano al:
 
- 
+```text
 73.19 %
- 
+```
 
 La solución final fue validada geométricamente para verificar que las piezas permanecieran dentro del tablero y no existieran solapamientos con área positiva.
 
